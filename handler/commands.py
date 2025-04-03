@@ -13,7 +13,6 @@ async def cmd_start(message: types.Message):
     print(message.from_user.id)
     # Проверка и создание пользователя
     if await get_user_by_tg_id(message.from_user.id):
-
         await create_user(tg_id=message.from_user.id, nickname=message.from_user.username)
 
     # print(message.text.split()[1])
@@ -131,3 +130,9 @@ async def admin_cmd(message: types.Message):
         parse_mode="HTML"
     )
 
+
+async def cmd_about(message: types.Message):
+    mess = await get_message("about")
+    await message.answer(mess,
+                         parse_mode="HTML"
+                         )

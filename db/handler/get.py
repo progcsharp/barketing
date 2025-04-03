@@ -24,7 +24,6 @@ async def get_link(link_id):
     return link
 
 
-
 async def get_message(slug):
     session = make_session()
     message = session.query(Message).filter(Message.slug == slug).first()
