@@ -52,7 +52,7 @@ async def call_step1(call: types.CallbackQuery):
 
     # Сначала отправляем видео
     await call.message.answer_video(
-        video="BAACAgIAAxkBAAIUImfqwhqZGfzftK7A-UrVWO5m2MjaAAJCcQACo8JZS06EhA7FB7FjNgQ",
+        video="BAACAgIAAxkBAAMVZ-6OlWFcxHct45IifGhKKsYgBGsAAkJxAAKjwllL4H3YguEHKqE2BA",
         caption=await get_message("text_video"),
         parse_mode="HTML"
     )
