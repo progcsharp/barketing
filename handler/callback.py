@@ -15,7 +15,7 @@ from payment.pay import process_payment, verify_robokassa_payment
 
 
 async def call_step1(call: types.CallbackQuery):
-    await call.message.delete()
+    # await call.message.delete()
 
     builder = InlineKeyboardBuilder()
 
@@ -23,12 +23,6 @@ async def call_step1(call: types.CallbackQuery):
     builder.add(types.InlineKeyboardButton(
         text="Получить материалы",
         callback_data="step2")
-    )
-
-    # Кнопка-ссылка
-    builder.add(types.InlineKeyboardButton(
-        text="Посмотреть трейлер курса",
-        url="https://example.com")  # Замените на реальную ссылку
     )
 
     # Настраиваем расположение кнопок (1 в ряд - вертикально)
@@ -49,10 +43,12 @@ async def call_step1(call: types.CallbackQuery):
     #     "💡 Нажми 'Получить материалы' или посмотри трейлер курса!"
     # )
     message_text = await get_message("step2_text")
+    link_video = await get_message("link_video")
+    print(link_video)
 
     # Сначала отправляем видео
     await call.message.answer_video(
-        video="BAACAgIAAxkBAAMVZ-6OlWFcxHct45IifGhKKsYgBGsAAkJxAAKjwllL4H3YguEHKqE2BA",
+        video=link_video,
         caption=await get_message("text_video"),
         parse_mode="HTML"
     )
@@ -66,7 +62,7 @@ async def call_step1(call: types.CallbackQuery):
 
 
 async def call_step2(call: types.CallbackQuery):
-    await call.message.delete()
+    # await call.message.delete()
 
     builder = InlineKeyboardBuilder()
     builder.add(types.InlineKeyboardButton(
@@ -98,7 +94,7 @@ async def call_step2(call: types.CallbackQuery):
 
 
 async def call_step3(call: types.CallbackQuery):
-    await call.message.delete()
+    # await call.message.delete()
 
     # Создаем клавиатуру с кнопками (вертикальное расположение)
     builder = InlineKeyboardBuilder()
@@ -152,12 +148,12 @@ async def call_step3(call: types.CallbackQuery):
 
 
 async def process_fullprice(callback: types.CallbackQuery):
-    await callback.message.delete()
+    # await callback.message.delete()
     await process_payment(callback.message, 13100, "Полный тариф", "full")
 
 
 async def process_price2(callback: types.CallbackQuery):
-    await callback.message.delete()
+    # await callback.message.delete()
     await process_payment(callback.message, 9450, "Продажи от 0 до PRO", "pro")
 
 
@@ -254,7 +250,7 @@ async def check_payment(callback: types.CallbackQuery):
 
 
 async def send_materials(callback: types.CallbackQuery):
-    await callback.message.delete()
+    # await callback.message.delete()
     _, tariff_name = callback.data.split(":")
 
     # Здесь должна быть логика отправки материалов

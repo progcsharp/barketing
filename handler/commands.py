@@ -89,10 +89,11 @@ async def normal_start(message: types.Message):
     # )
 
     welcome_text = await get_message("start_text")
+    link_photo = await get_message("link_photo")
 
     # Отправляем сообщение с фото и текстом
     await message.answer_photo(
-        photo="https://barketing.pro/wp-content/uploads/2024/07/course-768x671.webp",
+        photo=link_photo,
         # Замените на реальный file_id или URL фото
         caption=message_photo,
         parse_mode="HTML"
