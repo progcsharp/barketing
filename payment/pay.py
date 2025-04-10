@@ -65,7 +65,7 @@ def generate_robokassa_link(amount: int, description: str, order_id: int) -> str
         f"Description={description_encoded}&"
         f"SignatureValue={signature}&"
         f"IncCurrLabel=RUB&"  # Валюта
-        f"IsTest=1"  # 1 - тест, 0 - боевой режим
+        f"IsTest=0"  # 1 - тест, 0 - боевой режим
     )
 
 

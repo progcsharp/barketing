@@ -228,7 +228,7 @@ async def check_payment(callback: types.CallbackQuery):
 
     try:
         order_id = int(order_id)
-        is_paid = True#await verify_robokassa_payment(order_id)
+        is_paid = await verify_robokassa_payment(order_id)
         if tariff_name in ["full", "pro"]:
             update_user(callback.from_user.id)
 
