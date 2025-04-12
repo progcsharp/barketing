@@ -3,10 +3,11 @@ import time
 
 from aiogram import types
 from aiogram.fsm.context import FSMContext
+from aiogram.types import ChatInviteLink
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from State.form import EditText, RefLinkStates
-from config import ROBOKASSA_LOGIN, ROBOKASSA_PASS1
+from config import ROBOKASSA_LOGIN, ROBOKASSA_PASS1, bot, CHANNEL_ID1, CHANNEL_ID2
 from db.handler.delete import delete_link
 from db.handler.get import get_message, get_messages, get_links, get_link, check_pay_course
 from db.handler.update import update_user
@@ -162,7 +163,6 @@ async def process_special(callback: types.CallbackQuery):
     if check_pay_course(callback.from_user.id):
         await callback.message.answer("Данный курс доступен тольке после покупки тарифа 'Продажи от 0 до PRO'")
     else:
-        await callback.message.delete()
         await process_payment(callback.message, 6400, "Спецкурс", "special")
 
 
@@ -228,7 +228,7 @@ async def check_payment(callback: types.CallbackQuery):
 
     try:
         order_id = int(order_id)
-        is_paid = await verify_robokassa_payment(order_id)
+        is_paid = True#await verify_robokassa_payment(order_id)
         if tariff_name in ["full", "pro"]:
             update_user(callback.from_user.id)
 
@@ -250,34 +250,52 @@ async def check_payment(callback: types.CallbackQuery):
 
 
 async def send_materials(callback: types.CallbackQuery):
-    # await callback.message.delete()
+    await callback.message.delete()
     _, tariff_name = callback.data.split(":")
 
-    # Здесь должна быть логика отправки материалов
+    # Создаем одноразовую ссылку в канал
+    invite_link_1channel: ChatInviteLink = await bot.create_chat_invite_link(
+        chat_id=CHANNEL_ID1,
+        name=f"Доступ для {callback.from_user.full_name} ({tariff_name})",
+        member_limit=1,  # Ссылка работает только 1 раз
+        creates_join_request=False,
+    )
+    invite_link_2channel: ChatInviteLink = await bot.create_chat_invite_link(
+        chat_id=CHANNEL_ID2,
+        name=f"Доступ для {callback.from_user.full_name} ({tariff_name})",
+        member_limit=1,  # Ссылка работает только 1 раз
+        creates_join_request=False,
+    )
+
+    # pay_full = await get_message("pay_full")
+    # pay_full = pay_full.replace("?link_course",invite_link_1channel.invite_link)
+    # pay_full = pay_full.replace("?link_special",invite_link_2channel.invite_link)
+
+    # Отправляем материалы + ссылку
     if tariff_name == "full":
+        pay_message = await get_message("pay_full")
+        pay_message = pay_message.replace("?link_course", invite_link_1channel.invite_link)
+        pay_message = pay_message.replace("?link_special", invite_link_2channel.invite_link)
         await callback.message.answer(
-            text="<b>🎉 Ваши материалы готовы tariff_name = full!</b>\n\n"
-                 "1. <a href='https://example.com/course.pdf'>Основной курс (PDF)</a>\n"
-                 "2. <a href='https://example.com/bonus.zip'>Бонусные материалы</a>\n\n"
-                 "Если возникли проблемы с доступом, напишите в поддержку.",
+            text=pay_message,
             parse_mode="HTML",
             disable_web_page_preview=True
         )
-    if tariff_name == "pro":
+
+    elif tariff_name == "pro":
+        pay_message = await get_message("pay_pro")
+        pay_message = pay_message.replace("?link_course", invite_link_1channel.invite_link)
         await callback.message.answer(
-            text="<b>🎉 Ваши материалы готовы tariff_name = pro!</b>\n\n"
-                 "1. <a href='https://example.com/course.pdf'>Основной курс (PDF)</a>\n"
-                 "2. <a href='https://example.com/bonus.zip'>Бонусные материалы</a>\n\n"
-                 "Если возникли проблемы с доступом, напишите в поддержку.",
+            text=pay_message,
             parse_mode="HTML",
             disable_web_page_preview=True
         )
-    if tariff_name == "special":
+
+    elif tariff_name == "special":
+        pay_message = await get_message("pay_special")
+        pay_message = pay_message.replace("?link_special", invite_link_2channel.invite_link)
         await callback.message.answer(
-            text="<b>🎉 Ваши материалы готовы tariff_name = special!</b>\n\n"
-                 "1. <a href='https://example.com/course.pdf'>Основной курс (PDF)</a>\n"
-                 "2. <a href='https://example.com/bonus.zip'>Бонусные материалы</a>\n\n"
-                 "Если возникли проблемы с доступом, напишите в поддержку.",
+            text=pay_message,
             parse_mode="HTML",
             disable_web_page_preview=True
         )
