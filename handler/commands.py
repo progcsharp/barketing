@@ -3,7 +3,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from config import ADMIN_ID
 from db.handler.create import create_user
-from db.handler.get import get_user_by_tg_id, get_message
+from db.handler.get import get_user_by_tg_id, get_message, get_tariff
 # from handler.callback import process_payment
 from db.handler.update import update_link
 from payment.pay import process_payment
@@ -23,14 +23,18 @@ async def cmd_start(message: types.Message):
         # Обработка разных вариантов старта
         start_param = command_args[1]
 
-        update_link(start_param)
+        if await get_user_by_tg_id(message.from_user.id):
+            update_link(message.from_user.id, start_param)
 
         if start_param == "full":
-            await process_payment(message, 13100, "Полный тариф", "full")
+            tariff = await get_tariff("full")
+            await process_payment(message, tariff.price, "Полный тариф", tariff.tariff_name)
         elif start_param == "pro":
-            await process_payment(message, 9450, "Продажи от 0 до PRO", "pro")
+            tariff = await get_tariff("pro")
+            await process_payment(message, tariff.price, "Продажи от 0 до PRO", tariff.tariff_name)
         elif start_param == "special":
-            await process_payment(message, 6400, "Спецкурс", "special")
+            tariff = await get_tariff("special")
+            await process_payment(message, tariff.price, "Спецкурс", tariff.tariff_name)
         else:
             await normal_start(message)
     else:
@@ -107,8 +111,9 @@ async def normal_start(message: types.Message):
 
 
 async def admin_cmd(message: types.Message):
-    if message.from_user.id == ADMIN_ID:
-        await message.answer("⛔ У вас нет прав администратора")
+    print(message.from_user.id)
+    if not(message.from_user.id in ADMIN_ID):
+        # await message.answer("⛔ У вас нет прав администратора")
         return
 
     builder = InlineKeyboardBuilder()
@@ -120,6 +125,10 @@ async def admin_cmd(message: types.Message):
         types.InlineKeyboardButton(
             text="🔗 Реферальные ссылки",
             callback_data="admin_ref_links"
+        ),
+        types.InlineKeyboardButton(
+            text="Изменить цену",
+            callback_data="admin_change_price"
         )
     )
     builder.adjust(1)  # По одной кнопке в ряд

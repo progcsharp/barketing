@@ -6,11 +6,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import ChatInviteLink
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from State.form import EditText, RefLinkStates
-from config import ROBOKASSA_LOGIN, ROBOKASSA_PASS1, bot, CHANNEL_ID1, CHANNEL_ID2
+from State.form import EditText, RefLinkStates, ChangePriceState
+from config import ROBOKASSA_LOGIN, ROBOKASSA_PASS1, bot, CHANNEL_ID1, CHANNEL_ID2, ADMIN_ID
 from db.handler.delete import delete_link
-from db.handler.get import get_message, get_messages, get_links, get_link, check_pay_course
-from db.handler.update import update_user
+from db.handler.get import get_message, get_messages, get_links, get_link, check_pay_course, get_tariff
+from db.handler.update import update_user, update_link_pay_count
 from handler.commands import admin_cmd
 from payment.pay import process_payment, verify_robokassa_payment
 
@@ -96,20 +96,22 @@ async def call_step2(call: types.CallbackQuery):
 
 async def call_step3(call: types.CallbackQuery):
     # await call.message.delete()
-
+    full = await get_tariff("full")
+    pro = await get_tariff("pro")
+    special = await get_tariff("special")
     # Создаем клавиатуру с кнопками (вертикальное расположение)
     builder = InlineKeyboardBuilder()
     builder.add(
         types.InlineKeyboardButton(
-            text="Тариф полный - 13 100 руб.",
+            text=f"Тариф полный - {full.price} руб.",
             callback_data="fullprice"
         ),
         types.InlineKeyboardButton(
-            text="Продажи от 0 до PRO - 9 450 руб.",
+            text=f"Продажи от 0 до PRO - {pro.price} руб.",
             callback_data="price2"
         ),
         types.InlineKeyboardButton(
-            text="Спецкурс - 6 400 руб.",
+            text=f"Спецкурс - {special.price} руб.",
             callback_data="Special course"
         )
     )
@@ -150,12 +152,14 @@ async def call_step3(call: types.CallbackQuery):
 
 async def process_fullprice(callback: types.CallbackQuery):
     # await callback.message.delete()
-    await process_payment(callback.message, 13100, "Полный тариф", "full")
+    tariff = await get_tariff("full")
+    await process_payment(callback.message, tariff.price, "Полный тариф", tariff.tariff_name)
 
 
 async def process_price2(callback: types.CallbackQuery):
     # await callback.message.delete()
-    await process_payment(callback.message, 9450, "Продажи от 0 до PRO", "pro")
+    tariff = await get_tariff("pro")
+    await process_payment(callback.message, tariff.price, "Продажи от 0 до PRO", tariff.tariff_name)
 
 
 async def process_special(callback: types.CallbackQuery):
@@ -163,7 +167,8 @@ async def process_special(callback: types.CallbackQuery):
     if check_pay_course(callback.from_user.id):
         await callback.message.answer("Данный курс доступен тольке после покупки тарифа 'Продажи от 0 до PRO'")
     else:
-        await process_payment(callback.message, 6400, "Спецкурс", "special")
+        tariff = await get_tariff("special")
+        await process_payment(callback.message, tariff.price, "Спецкурс", tariff.tariff_name)
 
 
 # async def process_payment(message: types.Message, amount: int, product_name: str):
@@ -233,6 +238,7 @@ async def check_payment(callback: types.CallbackQuery):
             update_user(callback.from_user.id)
 
         if is_paid:
+            update_link_pay_count(callback.from_user.id, tariff_name)
             builder = InlineKeyboardBuilder()
             builder.add(types.InlineKeyboardButton(
                 text="📥 Получить материалы",
@@ -242,6 +248,8 @@ async def check_payment(callback: types.CallbackQuery):
                 text="✅ Платеж подтвержден!",
                 reply_markup=builder.as_markup()
             )
+            for admin_id in ADMIN_ID:
+                await bot.send_message(admin_id, f"Пользователь {callback.from_user.username} оплатил тарифф {tariff_name}")
         else:
             await callback.answer("Платеж еще не обработан. Попробуйте через минуту.", show_alert=True)
 
@@ -357,8 +365,7 @@ async def show_text_to_edit(callback: types.CallbackQuery):
         f"------------------\n"
         f"{current_text}\n"
         f"------------------",
-        reply_markup=builder.as_markup(),
-        parse_mode="HTML"
+        reply_markup=builder.as_markup()
     )
 
 
@@ -376,7 +383,33 @@ async def request_new_text(callback: types.CallbackQuery, state: FSMContext):
 
 async def admin_back(callback: types.CallbackQuery):
     await callback.message.delete()
-    await admin_cmd(callback.message)
+    if not (callback.from_user.id in ADMIN_ID):
+        # await callback.message.answer("⛔ У вас нет прав администратора")
+        return
+
+    builder = InlineKeyboardBuilder()
+    builder.add(
+        types.InlineKeyboardButton(
+            text="✏️ Изменить текста",
+            callback_data="admin_edit_texts"
+        ),
+        types.InlineKeyboardButton(
+            text="🔗 Реферальные ссылки",
+            callback_data="admin_ref_links"
+        ),
+        types.InlineKeyboardButton(
+            text="Изменить цену",
+            callback_data="admin_change_price"
+        )
+    )
+    builder.adjust(1)  # По одной кнопке в ряд
+
+    await callback.message.answer(
+        "🛠️ <b>Административная панель</b>\n\n"
+        "Выберите действие:",
+        reply_markup=builder.as_markup(),
+        parse_mode="HTML"
+    )
 
 
 async def ref_links_menu(callback: types.CallbackQuery):
@@ -423,7 +456,7 @@ async def view_ref_links(callback: types.CallbackQuery):
     for link in links:
         builder.row(
             types.InlineKeyboardButton(
-                text=f"{link.name} (использований: {link.count})",
+                text=f"{link.name} (использований: {link.count}/{link.pay_count})",
                 callback_data=f"ref_link_detail_{link.id}"
             )
         )
@@ -468,7 +501,7 @@ async def ref_link_detail(callback: types.CallbackQuery):
         f"<b>Название:</b> {link.name}\n"
         f"<b>Использований:</b> {link.count}\n"
         f"<b>Полная ссылка:</b>\n"
-        f"<code>https://t.me/Test_12_12_12345_bot?start={link.url}</code>"
+        f"<code>https://t.me/barketing_bot?start={link.url}</code>"
     )
 
     await callback.message.edit_text(
@@ -522,3 +555,58 @@ async def add_ref_link_start(callback: types.CallbackQuery, state: FSMContext):
 async def cancel_ref_creation(callback: types.CallbackQuery, state: FSMContext):
     await state.clear()
     await ref_links_menu(callback)
+
+
+async def handle_change_price(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    builder = InlineKeyboardBuilder()
+    # Добавляем кнопки с тарифами
+    builder.add(
+        types.InlineKeyboardButton(
+            text="Тариф полный",
+            callback_data="change_price_full"
+        ),
+        types.InlineKeyboardButton(
+            text="Продажи от 0 до PRO",
+            callback_data="change_price_pro"
+        ),
+        types.InlineKeyboardButton(
+            text="Спецкурс",
+            callback_data="change_price_special"
+        )
+    )
+    builder.add(
+        types.InlineKeyboardButton(
+            text="◀️ Назад",
+            callback_data="admin_back"
+        )
+    )
+    builder.adjust(1)  # По одной кнопке в ряд
+
+    await callback.message.answer(
+        "Выберите тариф, для которого хотите изменить цену:",
+        reply_markup=builder.as_markup()
+    )
+    await state.set_state(ChangePriceState.waiting_for_tariff)
+    await callback.answer()
+
+
+async def handle_tariff_selection(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.delete()
+    tariff_map = {
+        "change_price_full": "full",
+        "change_price_pro": "pro",
+        "change_price_special": "special"
+    }
+
+    tariff_key = callback.data
+    tariff_name = tariff_map.get(tariff_key)
+
+    if not tariff_name:
+        await callback.answer("Неизвестный тариф")
+        return
+
+    await state.update_data(tariff_name=tariff_name)
+    await callback.message.answer(f"Введите новую цену для тарифа {tariff_name.capitalize()}:")
+    await state.set_state(ChangePriceState.waiting_for_new_price)
+    await callback.answer()

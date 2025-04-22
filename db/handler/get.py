@@ -1,4 +1,4 @@
-from db import make_session, User, Link, Message
+from db import make_session, User, Link, Message, Tariff
 
 
 async def get_user_by_tg_id(tg_id):
@@ -46,3 +46,10 @@ def check_pay_course(tg_id):
     if user.pay_course is None:
         return True
     return False
+
+
+async def get_tariff(tariff_name):
+    session = make_session()
+    tariff = session.query(Tariff).filter(Tariff.tariff_name == tariff_name).first()
+    session.close()
+    return tariff

@@ -17,6 +17,7 @@ class User(Base):
     tg_id = Column(Integer)
     nickname = Column(String)
     pay_course = Column(Integer)
+    referal = Column(String)
 
     def __init__(self, tg_id, nickname):
         self.tg_id = tg_id
@@ -30,10 +31,12 @@ class Link(Base):
     url = Column(String)
     count = Column(Integer)
     name = Column(String)
+    pay_count = Column(Integer)
 
     def __init__(self, url, name):
         self.url = url
         self.count = 0
+        self.pay_count = 0
         self.name = name
 
 
@@ -48,3 +51,13 @@ class Message(Base):
     def __init__(self, slug, message):
         self.slug = slug
         self.message = message
+
+
+class Tariff(Base):
+    __tablename__ = "tariff"
+
+    id = Column(Integer, primary_key=True)
+    tariff_name = Column(String)
+    price = Column(Integer)
+
+

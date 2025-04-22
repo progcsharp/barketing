@@ -1,8 +1,10 @@
 from aiogram import Dispatcher, F
 
+from State.form import ChangePriceState
 from handler.callback import call_step1, call_step2, call_step3, process_fullprice, process_price2, process_special, \
     check_payment, send_materials, edit_texts_menu, show_text_to_edit, request_new_text, admin_back, ref_links_menu, \
-    view_ref_links, ref_link_detail, confirm_delete, add_ref_link_start, cancel_ref_creation
+    view_ref_links, ref_link_detail, confirm_delete, add_ref_link_start, cancel_ref_creation, handle_change_price, \
+    handle_tariff_selection
 
 
 async def register_handlers_callback(dp: Dispatcher):
@@ -25,5 +27,9 @@ async def register_handlers_callback(dp: Dispatcher):
     dp.callback_query.register(confirm_delete, F.data.startswith("delete_ref_link_"))
     dp.callback_query.register(add_ref_link_start, F.data == "add_ref_link")
     dp.callback_query.register(cancel_ref_creation, F.data == "cancel_ref_creation")
+    dp.callback_query.register(handle_change_price, lambda c: c.data == "admin_change_price")
+    dp.callback_query.register(handle_tariff_selection,
+                               lambda c: c.data.startswith("change_price_"),
+                               ChangePriceState.waiting_for_tariff)
 
 
